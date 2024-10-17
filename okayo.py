@@ -5,7 +5,6 @@ from datetime import datetime
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///okayo.db'
 db = SQLAlchemy(app)
-count = 0
 
 # Modèles de données
 class Client(db.Model):
@@ -88,7 +87,6 @@ def get_tva_en_vigueur():
 @app.route('/api/factures', methods=['GET'])
 def get_factures():
     factures = Facture.query.all()
-    print("salut")
     return jsonify([{'facture.id' : f.id, 'reference': f.reference, 'date_facturation': f.date_facturation, 'nom du client' : Client.query.filter_by(id=f.client_id).first_or_404().nom,\
                       'total_ht' : f.total_ht ,'total_ttc' : f.total_ttc} for f in factures])
 
@@ -118,13 +116,13 @@ def generer_facture():
             facture_id=facture.id,
             produit_id=produit.id,
             designation=produit.designation,
-            prix_unitaire_ht=ligne['prixUnitaireHT'],
+            prix_unitaire_ht=produit.prix_unitaire_ht,
             quantite=ligne['quantite'],
             taux_tva=tva.taux
         )
         db.session.add(ligne_facture)
         
-        ligne_total_ht = ligne['quantite'] * ligne['prixUnitaireHT']
+        ligne_total_ht = ligne['quantite'] * produit.prix_unitaire_ht
         #calcul du total pour chaque TVA différente
         if tva.taux not in totaux_tva:
             totaux_tva[tva.taux] = 0
@@ -153,7 +151,6 @@ def generer_facture():
         'total_ht': facture.total_ht,
         'total_ttc': facture.total_ttc,
         'totaux_tva': totaux_tva,
-        'taux_tva' : ligne_facture.taux_tva
     }), 201
 
 # route pour récupérer une facture spécifique
@@ -191,10 +188,10 @@ if __name__ == '__main__':
     
     if not Produit.query.first():
         produits = [
-            Produit(designation="Mon produit A", prix_unitaire_ht=70000.00, tva_id = 1),
-            Produit(designation="Mon produit B", prix_unitaire_ht=1500.00, tva_id=2),
-            Produit(designation="Mon produit C", prix_unitaire_ht=3000.00, tva_id=2),
-            Produit(designation="Mon produit D", prix_unitaire_ht=4000.00, tva_id=4)
+            Produit(designation="Mon produit A", prix_unitaire_ht=50000.00, tva_id = 1),
+            Produit(designation="Mon produit B", prix_unitaire_ht=3500.00, tva_id=2),
+            Produit(designation="Mon produit C", prix_unitaire_ht=2000.00, tva_id=3),
+            Produit(designation="Mon produit D", prix_unitaire_ht=4000.00, tva_id=3)
         ]
         db.session.add_all(produits)
     
@@ -202,8 +199,7 @@ if __name__ == '__main__':
         tvas = [
             TVA(taux=20.0, date_debut=datetime(2024, 1, 1).date()),
             TVA(taux=5.5, date_debut=datetime(2023, 1, 1).date()),
-            TVA(taux=7.0, date_debut=datetime(2025, 1, 1).date()),
-            TVA(taux=7.0, date_debut=datetime(2022, 1, 1).date())
+            TVA(taux=7.0, date_debut=datetime(2022, 1, 1).date()),
         ]
         db.session.add_all(tvas)
 
